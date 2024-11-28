@@ -1,0 +1,69 @@
+pipeline {
+    // agent any
+    agent {
+        label 'AGENT-1'
+    }
+    options{
+        timeout(time: 10, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        //retry(1)
+    }
+    environment {
+        DEBUG = 'true'
+        appVersion = '' // this will become global, we can use across pipeline
+    }
+
+    stages {
+        stage('Read the version') {
+            steps {
+                script{
+                    def packageJson = readJSON file: 'package.json'   // path of the file, here the json file and pipeline are in the same folder
+                    appVersion = packageJson.version    // version is the key name in package.json
+                    echo "app version:: ${appVersion}"
+                }
+            }
+        }
+        stage('Install Dependencies') {
+            steps {
+                // install nodejs using below commands on agent before running this file
+                // dnf module disable nodejs -y
+                // dnf module enable nodejs:20 -y
+                // dnf install nodejs -y
+                sh 'npm install'
+            }
+        }
+        // stage('Deploy') {
+        //     when {
+        //         expression { env.GIT_BRANCH != "origin/main" }
+        //     }
+        //     steps {
+
+        //             sh 'echo This is deploy'
+        //             //error 'pipeline failed'
+
+        //     }
+        // }
+        stage('Docker Build'){
+            // before running this stage
+            // setup docker engine on the agent
+            // disconnect the agent in jenkins and connect back after setting upt docker
+            sh """
+            docker build -t yswnth/backend:${appVersion} .
+            docker images
+            """
+        }
+    }
+
+    post {
+        always{
+            echo "This sections runs always"
+            deleteDir()
+        }
+        success{
+            echo "This section run when pipeline success"
+        }
+        failure{
+            echo "This section run when pipeline failure"
+        }
+    }
+}
