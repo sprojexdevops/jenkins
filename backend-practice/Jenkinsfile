@@ -46,7 +46,7 @@ pipeline {
         stage('Docker Build'){
             // before running this stage
             // setup docker engine on the agent
-            // disconnect the agent in jenkins and connect back after setting upt docker
+            // disconnect the agent in jenkins and connect back after setting up the docker
             sh """
             docker build -t yswnth/backend:${appVersion} .
             docker images
