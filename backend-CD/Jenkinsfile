@@ -7,47 +7,57 @@ pipeline {
         disableConcurrentBuilds()
         //retry(1)
     }
+    parameters{
+        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'uat', 'pre-prod', 'prod'], description: 'Select your Environment')
+        string(name: 'version',  description: 'Enter your application version')
+        // string(name: 'jira-id',  description: 'Enter your jira id')
+    }
     environment {
-        DEBUG = 'true'
         appVersion = '' // this will become global, we can use across pipeline
         region = 'us-east-1'
-        account_id = '315069654700'
+        account_id = 'xxxxxxxxxxxxx'
         project = 'expense'
-        environment = 'dev'
+        environment = ''
         component = 'backend'
     }
 
     stages {
-        stage('Read the version') {
-            steps {
+        
+        stage('Setup Environment'){
+            steps{
                 script{
-                    def packageJson = readJSON file: 'package.json'
-                    appVersion = packageJson.version
-                    echo "App version: ${appVersion}"
+                    environment = params.ENVIRONMENT
+                    appVersion = params.version
                 }
             }
         }
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm install'
+        stage('Integration tests'){
+            when {
+                expression {params.ENVIRONMENT == 'qa'}
             }
-        }
-        stage('Docker build') {
-            
-            steps {
-                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
+            steps{
+                script{
                     sh """
-                    aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.us-east-1.amazonaws.com
-
-                    docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion} .
-
-                    docker images
-
-                    docker push ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion}
+                        echo "Run integration tests"
                     """
                 }
             }
         }
+        // stage('Check JIRA'){
+        //     when {
+        //         expression {params.ENVIRONMENT == 'prod'}
+        //     }
+        //     steps{
+        //         script{
+        //             sh """
+        //                 echo "check jira status"
+        //                 echo "check jira deployment window"
+        //                 echo "fail pipeline if above two are not true"
+        //             """
+        //             // code to check jira status --- jira admin or developer
+        //         }
+        //     }
+        // }
         stage('Deploy'){
             steps{
                 withAWS(region: 'us-east-1', credentials: 'aws-creds') {
